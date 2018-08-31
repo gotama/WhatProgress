@@ -10,19 +10,24 @@ import android.util.AttributeSet;
 import android.view.View;
 
 public class DrawProgress extends View {
+    private final static int fat = 10;
+    private final static int two = 2;
 
+    private int length;
+    private int wrapWidth;
+    private int rectTopLine;
+    private int rectBottomLine;
     private int indicators;
     private int progress;
+    private Paint progressPaint;
 
-    //CustomFields
-    private float barHeight;
     private int primaryColor;
     private int secondaryColor;
-    private int indicatorHeight;
-    private int indicatorWidth;
+    private int tertiaryColor;
 
-    private Paint progressPaint;
-    private RectF unitIndicator;
+    //TODO Investigate worth in optimizing with Map?
+    private RectF tOval;
+    private RectF tRect;
 
     public DrawProgress(Context context, AttributeSet attrs) {
         super(context, attrs);
@@ -31,90 +36,130 @@ public class DrawProgress extends View {
 
     private void init(AttributeSet attrs) {
         progressPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        progressPaint.setStyle(Paint.Style.FILL_AND_STROKE);
-        unitIndicator = new RectF();
+        progressPaint.setStyle(Paint.Style.FILL);
+        progressPaint.setAntiAlias(true);
 
+        tOval = new RectF();
+        tRect = new RectF();
 
         TypedArray typedArray = getContext().getTheme().obtainStyledAttributes(attrs, R.styleable.DrawProgressBar, 0, 0);
         try {
-            barHeight = typedArray.getDimensionPixelSize(R.styleable.DrawProgressBar_barHeight, -1);
             primaryColor = typedArray.getColor(R.styleable.DrawProgressBar_primaryColor, Color.BLACK);
             secondaryColor = typedArray.getColor(R.styleable.DrawProgressBar_secondaryColor, Color.BLACK);
-            indicatorHeight = typedArray.getDimensionPixelSize(R.styleable.DrawProgressBar_indicatorHeight, -1);
-            indicatorWidth = typedArray.getDimensionPixelSize(R.styleable.DrawProgressBar_indicatorWidth, -1);
+            tertiaryColor = typedArray.getColor(R.styleable.DrawProgressBar_tertiaryColor, Color.BLACK);
         } finally {
             typedArray.recycle();
         }
     }
 
-    @Override
-    protected void onDraw(Canvas canvas) {
-        //Draw Unit indicators
-        progressPaint.setStyle(Paint.Style.FILL);
-        progressPaint.setAntiAlias(true);
-        int width = getWidth() / indicators;
-        int spaceBetweenUnit = 0;
-        for (int i = 0; i < indicators; i++) {
-            unitIndicator.set(spaceBetweenUnit, 0, indicatorWidth + spaceBetweenUnit, indicatorHeight);
-            canvas.drawOval(unitIndicator, progressPaint);
-
-            spaceBetweenUnit += width;
-        }
-        int totalWidth = indicatorWidth + spaceBetweenUnit - width;
-        int halfHeight = getHeight() / 2;
-//        int progressEndX = (int) (getWidth() * progress / 100f);
-//        int barWidth = (int) (getWidth() * units / 100f);
-//
-        // draw the part of the bar that's filled
-//        progressPaint.setStrokeWidth(barHeight);
-//        progressPaint.setColor(secondaryColor);
-//        canvas.drawLine(0, halfHeight, progressEndX, halfHeight, progressPaint);
-//
-//        // draw the unfilled section
-        progressPaint.setColor(primaryColor);
-        canvas.drawLine(0, halfHeight, totalWidth, halfHeight, progressPaint);
-
-
-    }
-
+    /**
+     * Here we measure to figure out the wrapWidth
+     *
+     * @param widthMeasureSpec
+     * @param heightMeasureSpec
+     */
     @Override
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
-        int width = MeasureSpec.getSize(widthMeasureSpec);
-        int heightSize = MeasureSpec.getSize(heightMeasureSpec);
 
-        int height;
-        switch (MeasureSpec.getMode(heightMeasureSpec)) {
+        int width;
+        int widthSize = MeasureSpec.getSize(widthMeasureSpec);
+        length = widthSize / indicators;
+        wrapWidth = length * indicators;
+        wrapWidth = wrapWidth - length;//length to cut off the last tile
+
+        rectTopLine = length / 3;
+        rectBottomLine = rectTopLine * two;
+
+        switch (MeasureSpec.getMode(widthMeasureSpec)) {
             case MeasureSpec.EXACTLY:
-                height = heightSize;
+                width = widthSize;
                 break;
             case MeasureSpec.AT_MOST:
-                height = Math.min(indicatorHeight, heightSize);
+                width = Math.min(wrapWidth, widthSize);
                 break;
             case MeasureSpec.UNSPECIFIED:
-                height = indicatorHeight;
+                width = wrapWidth;
                 break;
             default:
-                height = indicatorHeight;
+                width = wrapWidth;
                 break;
         }
 
-        setMeasuredDimension(width, height);
+        //TODO Measure textview into length
+
+        setMeasuredDimension(width, length);
     }
 
-    public void setProgress(int progress) {
-        this.progress = progress;
-        updateGoalReached();
-        invalidate();
+    @Override
+    protected void onDraw(Canvas canvas) {
+        //TODO Improve UI
+//        Drawable d = getResources().getDrawable(R.drawable.foobar);
+//        d.setBounds(left, top, right, bottom);
+//        d.draw(canvas);
+
+        int offset = wrapWidth;
+        for (int i = indicators - two; i >= 0; i--) {
+
+            if (i == progress) {
+
+                if ((i % two) == 0) {
+                    drawOval(canvas, offset, true);
+                    drawCurrentOval(canvas, offset - length, offset);
+                } else {
+                    drawRect(canvas, offset, i == progress);
+                }
+            } else {
+
+                if ((i % two) == 0) {
+                    drawOval(canvas, offset, (progress != 0 && i <= progress));
+                } else {
+                    drawRect(canvas, offset, (progress != 0 && i <= progress));
+                }
+            }
+
+            offset = offset - length;
+        }
+    }
+
+    private void drawCurrentOval(Canvas canvas, int outerLeft, int offset) {
+        progressPaint.setColor(tertiaryColor);
+        int innerLeft = (outerLeft == 0) ? length / 3 : outerLeft + (length / 3);
+        int innerRight = (outerLeft == 0) ? innerLeft * two : offset + (outerLeft - innerLeft);
+
+        tOval.set(innerLeft, rectTopLine, innerRight, rectBottomLine);
+        canvas.drawOval(tOval, progressPaint);
+    }
+
+    private void drawOval(Canvas canvas, int offset, boolean isSecondaryColor) {
+        progressPaint.setColor(isSecondaryColor ? secondaryColor : primaryColor);
+        int left = offset - length;
+        tOval.set(left, 0, offset, length);
+        canvas.drawOval(tOval, progressPaint);
+    }
+
+    private void drawRect(Canvas canvas, int offset, boolean isSecondaryColor) {
+        progressPaint.setColor(isSecondaryColor ? secondaryColor : primaryColor);
+        int left = (offset != 0) ? offset - length : offset + length;
+        tRect.set(left - fat, rectTopLine, offset + fat, rectBottomLine);
+        canvas.drawRect(tRect, progressPaint);
     }
 
     public void setTotalIndicators(int indicators) {
-        this.indicators = indicators;
-
-        updateGoalReached();
+        this.indicators = indicators * two;
         invalidate();
     }
 
-    private void updateGoalReached() {
-//        isGoalReached = progress >= units;
+    public void incrementProgress() {
+        if (progress < (indicators - two)) {
+            this.progress = progress + two;
+            invalidate();
+        }
+    }
+
+    public void decrementProgress() {
+        if (progress != 0) {
+            this.progress = progress - two;
+            invalidate();
+        }
     }
 }
