@@ -10,22 +10,23 @@ import android.util.AttributeSet;
 import android.view.View;
 
 public class DrawProgress extends View {
-    private final static int fat = 10;
+    private final static int fat = 15;
     private final static int two = 2;
 
     private int length;
     private int wrapWidth;
-    private int rectTopLine;
-    private int rectBottomLine;
+    private int wrapHeight;
+    private int rectStartLine;
+    private int rectEndLine;
     private int indicators;
     private int progress;
     private Paint progressPaint;
 
+    private boolean isHorizontal;
     private int primaryColor;
     private int secondaryColor;
     private int tertiaryColor;
 
-    //TODO Investigate worth in optimizing with Map?
     private RectF tOval;
     private RectF tRect;
 
@@ -44,6 +45,7 @@ public class DrawProgress extends View {
 
         TypedArray typedArray = getContext().getTheme().obtainStyledAttributes(attrs, R.styleable.DrawProgressBar, 0, 0);
         try {
+            isHorizontal = typedArray.getBoolean(R.styleable.DrawProgressBar_isHorizontal, true);
             primaryColor = typedArray.getColor(R.styleable.DrawProgressBar_primaryColor, Color.BLACK);
             secondaryColor = typedArray.getColor(R.styleable.DrawProgressBar_secondaryColor, Color.BLACK);
             tertiaryColor = typedArray.getColor(R.styleable.DrawProgressBar_tertiaryColor, Color.BLACK);
@@ -61,43 +63,31 @@ public class DrawProgress extends View {
     @Override
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
 
-        int width;
-        int widthSize = MeasureSpec.getSize(widthMeasureSpec);
-        length = widthSize / indicators;
-        wrapWidth = length * indicators;
-        wrapWidth = wrapWidth - length;//length to cut off the last tile
-
-        rectTopLine = length / 3;
-        rectBottomLine = rectTopLine * two;
-
-        switch (MeasureSpec.getMode(widthMeasureSpec)) {
-            case MeasureSpec.EXACTLY:
-                width = widthSize;
-                break;
-            case MeasureSpec.AT_MOST:
-                width = Math.min(wrapWidth, widthSize);
-                break;
-            case MeasureSpec.UNSPECIFIED:
-                width = wrapWidth;
-                break;
-            default:
-                width = wrapWidth;
-                break;
+        if (isHorizontal) {
+            int widthSize = MeasureSpec.getSize(widthMeasureSpec);
+            length = widthSize / indicators;
+            wrapHeight = length;
+            wrapWidth = length * indicators;
+            wrapWidth = wrapWidth - length;//length to cut off the last tile
+            rectStartLine = length / 3;
+            rectEndLine = rectStartLine * two;
+            setMeasuredDimension(Math.min(wrapWidth, widthSize), wrapHeight);
+        } else {
+            int heightSize = MeasureSpec.getSize(heightMeasureSpec);
+            length = heightSize / indicators;
+            wrapWidth = length;
+            wrapHeight = length * indicators;
+            wrapHeight = wrapHeight - length;
+            rectStartLine = length / 3;
+            rectEndLine = rectStartLine * two;
+            setMeasuredDimension(wrapWidth, Math.min(wrapHeight, heightSize));
         }
-
-        //TODO Measure textview into length
-
-        setMeasuredDimension(width, length);
     }
 
     @Override
     protected void onDraw(Canvas canvas) {
-        //TODO Improve UI
-//        Drawable d = getResources().getDrawable(R.drawable.foobar);
-//        d.setBounds(left, top, right, bottom);
-//        d.draw(canvas);
 
-        int offset = wrapWidth;
+        int offset = isHorizontal ? wrapWidth : wrapHeight;
         for (int i = indicators - two; i >= 0; i--) {
 
             if (i == progress) {
@@ -123,24 +113,35 @@ public class DrawProgress extends View {
 
     private void drawCurrentOval(Canvas canvas, int outerLeft, int offset) {
         progressPaint.setColor(tertiaryColor);
-        int innerLeft = (outerLeft == 0) ? length / 3 : outerLeft + (length / 3);
-        int innerRight = (outerLeft == 0) ? innerLeft * two : offset + (outerLeft - innerLeft);
-
-        tOval.set(innerLeft, rectTopLine, innerRight, rectBottomLine);
+        int innerCalibratedOffsetA = (outerLeft == 0) ? length / 3 : outerLeft + (length / 3);
+        int innerCalibratedOffsetB = (outerLeft == 0) ? innerCalibratedOffsetA * two : offset + (outerLeft - innerCalibratedOffsetA);
+        if (isHorizontal) {
+            tOval.set(innerCalibratedOffsetA, rectStartLine, innerCalibratedOffsetB, rectEndLine);
+        } else {
+            tOval.set(rectStartLine, innerCalibratedOffsetA, rectEndLine, innerCalibratedOffsetB);
+        }
         canvas.drawOval(tOval, progressPaint);
     }
 
     private void drawOval(Canvas canvas, int offset, boolean isSecondaryColor) {
         progressPaint.setColor(isSecondaryColor ? secondaryColor : primaryColor);
-        int left = offset - length;
-        tOval.set(left, 0, offset, length);
+        int calibratedOffset = offset - length;
+        if (isHorizontal) {
+            tOval.set(calibratedOffset, 0, offset, length);
+        } else {
+            tOval.set(0, calibratedOffset, length, offset);
+        }
         canvas.drawOval(tOval, progressPaint);
     }
 
     private void drawRect(Canvas canvas, int offset, boolean isSecondaryColor) {
         progressPaint.setColor(isSecondaryColor ? secondaryColor : primaryColor);
-        int left = (offset != 0) ? offset - length : offset + length;
-        tRect.set(left - fat, rectTopLine, offset + fat, rectBottomLine);
+        int calibratedOffset = (offset != 0) ? offset - length : offset + length;
+        if (isHorizontal) {
+            tRect.set(calibratedOffset - fat, rectStartLine, offset + fat, rectEndLine);
+        } else {
+            tRect.set(rectStartLine, calibratedOffset - fat, rectEndLine, offset + fat);
+        }
         canvas.drawRect(tRect, progressPaint);
     }
 

@@ -9,8 +9,9 @@
     <gautamastudios.com.whatprogress.DrawProgress
         android:id="@+id/drawProgress"
         android:layout_width="wrap_content"
-        android:layout_height="24dp"
+        android:layout_height="wrap_content"
         android:background="@android:color/holo_red_light"
+        app:isHorizontal="false"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintLeft_toLeftOf="parent"
         app:layout_constraintRight_toRightOf="parent"
