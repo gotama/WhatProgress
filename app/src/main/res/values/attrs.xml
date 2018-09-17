@@ -6,4 +6,10 @@
         <attr name="secondaryColor" format="color" />
         <attr name="tertiaryColor" format="color" />
     </declare-styleable>
+    <!--<declare-styleable name="LayoutProgressBar">-->
+        <!--<attr name="test1" format="boolean" />-->
+        <!--<attr name="test2" format="color" />-->
+        <!--<attr name="test3" format="color" />-->
+        <!--<attr name="test4" format="color" />-->
+    <!--</declare-styleable>-->
 </resources>
